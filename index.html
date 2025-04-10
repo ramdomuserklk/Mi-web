@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Preguntas vacilonas</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to bottom right, #ffffff, #e0f7fa);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: auto;
+      background: #fff;
+      padding: 25px 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #00796b;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 1.1rem;
+      margin: 8px 0;
+      border: none;
+      border-radius: 10px;
+      background-color: #00796b;
+      color: white;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      transition: all 0.2s ease-in-out;
+    }
+
+    button:hover {
+      background-color: #004d40;
+      transform: scale(1.02);
+    }
+
+    #imagen {
+      width: 100%;
+      height: auto;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin: 10px 0;
+    }
+
+    .barra-progreso,
+    .barra-tiempo {
+      width: 100%;
+      height: 10px;
+      background-color: #e0e0e0;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 15px;
+    }
+
+    .progreso,
+    .tiempo-restante {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .progreso {
+      background-color: #4caf50;
+    }
+
+    .tiempo-restante {
+      background-color: #4caf50;
+    }
+
+    #temporizador {
+      text-align: center;
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 15px;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+    }
+
+    th {
+      background-color: #00796b;
+      color: white;
+    }
+
+    #resultado,
+    #estadistica {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 1rem;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Preguntas para maleantes</h2>
+
+  <div id="inicio">
+    <label for="nombre">¿Como te llamas?:</label>
+    <input type="text" id="nombre" placeholder="Ej. Ainhoa" />
+    <button onclick="empezar()"> Comenzar</button>
+  </div>
+
+  <div id="contenido" class="hidden">
+    <div id="temporizador"></div>
+    <div class="barra-tiempo"><div class="tiempo-restante" id="barraTiempoRestante"></div></div>
+    <div id="pregunta" style="font-weight: bold; font-size: 1.1rem; margin-top: 20px;"></div>
+    <img id="imagen" src="" alt="Imagen" />
+    <button id="btn1" onclick="verificarRespuesta(this, 0)"></button>
+    <button id="btn2" onclick="verificarRespuesta(this, 1)"></button>
+    <div class="barra-progreso"><div class="progreso" id="barraProgreso"></div></div>
+    <div id="resultado"></div>
+    <div id="estadistica"></div>
+    <div id="tablaHistorial"></div>
+    <div id="tablaRanking"></div>
+    <button onclick="reiniciarCuestionario()"> Reintentar</button>
+  </div>
+</div>
+
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+<audio id="correcto" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+<audio id="incorrecto" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+
+<script>
+  const preguntas = [
+    {
+      pregunta: "¿Quien es este jambo?",
+      respuestas: ["El muñeco de tu muñeca", "Un yonki"],
+      correcta: 0,
+      imagen: "kaydy.jpg"
+    },
+    {
+      pregunta: "¿Molan?",
+      respuestas: ["Pila", "Que va"],
+      correcta: 0,
+      imagen: "pxxrgvng.jpg"
+    },
+    {
+      pregunta: "¿Que bebe este tio?",
+      respuestas: ["Lean", "Fanta"],
+      correcta: 0,
+      imagen: "gloosito.jpg"
+    }
+  ];
+
+  let indice = 0;
+  let puntaje = 0;
+  let nombreUsuario = "";
+  let historial = [];
+  let ranking = [];
+  let temporizador;
+  let tiempoMax = 15;
+  let tiempoRestante = tiempoMax;
+
+  function empezar() {
+    nombreUsuario = document.getElementById("nombre").value;
+    if (!nombreUsuario.trim()) return alert("Por favor, escribe tu nombre");
+    document.getElementById("inicio").classList.add("hidden");
+    document.getElementById("contenido").classList.remove("hidden");
+    mostrarPregunta();
+  }
+
+  function mostrarPregunta() {
+    if (indice >= preguntas.length) return finalizar();
+
+    const p = preguntas[indice];
+    document.getElementById("pregunta").textContent = p.pregunta;
+    document.getElementById("btn1").textContent = p.respuestas[0];
+    document.getElementById("btn2").textContent = p.respuestas[1];
+    document.getElementById("imagen").src = p.imagen;
+
+    document.getElementById("resultado").textContent = "";
+    document.getElementById("barraProgreso").style.width = ((indice / preguntas.length) * 100) + "%";
+
+    tiempoRestante = tiempoMax;
+    actualizarTemporizador();
+    temporizador = setInterval(actualizarTemporizador, 1000);
+  }
+
+  function actualizarTemporizador() {
+    const barra = document.getElementById("barraTiempoRestante");
+    document.getElementById("temporizador").textContent = `⏳ Tiempo restante: ${tiempoRestante}s`;
+    barra.style.width = (tiempoRestante / tiempoMax) * 100 + "%";
+    if (tiempoRestante <= 0) {
+      clearInterval(temporizador);
+      document.getElementById("incorrecto").play();
+      siguiente();
+    }
+    tiempoRestante--;
+    document.getElementById("beep").play();
+  }
+
+  function verificarRespuesta(btn, opcion) {
+    clearInterval(temporizador);
+    const esCorrecta = opcion === preguntas[indice].correcta;
+    if (esCorrecta) {
+      puntaje++;
+      document.getElementById("correcto").play();
+      document.getElementById("resultado").textContent = "✅";
+    } else {
+      document.getElementById("incorrecto").play();
+      document.getElementById("resultado").textContent = "❌";
+    }
+    setTimeout(siguiente, 1000);
+  }
+
+  function siguiente() {
+    indice++;
+    mostrarPregunta();
+  }
+
+  function finalizar() {
+    historial.push({ nombre: nombreUsuario, puntaje });
+    ranking = [...historial].sort((a, b) => b.puntaje - a.puntaje).slice(0, 10);
+    document.getElementById("pregunta").textContent = "Terminaste";
+    document.getElementById("imagen").classList.add("hidden");
+    document.getElementById("btn1").classList.add("hidden");
+    document.getElementById("btn2").classList.add("hidden");
+    document.getElementById("resultado").textContent = `Puntaje: ${puntaje}/${preguntas.length}`;
+    document.getElementById("estadistica").textContent = ` Has respondido correctamente el ${(puntaje / preguntas.length * 100).toFixed(0)}%`;
+    actualizarTablas();
+  }
+
+  function reiniciarCuestionario() {
+    indice = 0;
+    puntaje = 0;
+    document.getElementById("imagen").classList.remove("hidden");
+    document.getElementById("btn1").classList.remove("hidden");
+    document.getElementById("btn2").classList.remove("hidden");
+    mostrarPregunta();
+  }
+
+  function actualizarTablas() {
+    let htmlHistorial = "<h3>📋 Historial</h3><table><tr><th>Nombre</th><th>Puntaje</th></tr>";
+    historial.forEach(h => {
+      htmlHistorial += `<tr><td>${h.nombre}</td><td>${h.puntaje}</td></tr>`;
+    });
+    htmlHistorial += "</table>";
+    document.getElementById("tablaHistorial").innerHTML = htmlHistorial;
+
+    let htmlRanking = "<h3>🏆 Clasificación</h3><table><tr><th>Puesto</th><th>Nombre</th><th>Puntaje</th></tr>";
+    ranking.forEach((r, i) => {
+      htmlRanking += `<tr><td>${i + 1}</td><td>${r.nombre}</td><td>${r.puntaje}</td></tr>`;
+    });
+    htmlRanking += "</table>";
+    document.getElementById("tablaRanking").innerHTML = htmlRanking;
+  }
+</script>
+</body>
+</html>
